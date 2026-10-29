@@ -3,8 +3,8 @@
 // through tick() like every replay test, so game/sim/input-map.ts stays inside
 // the simulation.
 //
-// It is also where HW-001 is planted, so nothing here asks what a rider does
-// to the horizontal axis; that is the paired test's alone (AGENTS.md rule 5).
+// HW-001 was planted here and is fixed: a rider changes nothing about which
+// way the buttons point, and the tests below say so for both directions.
 
 import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../../game/sim/index';
@@ -46,5 +46,20 @@ describe('the input map', () => {
 
     expect(world.player.onGround).toBe(false);
     expect(world.player.state).toBe('jump');
+  });
+
+  it.each([
+    ['right', { right: true }, 1],
+    ['left', { left: true }, -1],
+  ] as const)('walks the wizard %s on %s while the creature rides', (_name, press, sign) => {
+    const world = run(worldFrom(ROOM, { creature: true }), hold({ right: true }, WALK));
+
+    expect(carriedSince(world), 'the creature never climbed on').toBeGreaterThanOrEqual(0);
+
+    const from = world.player.x;
+
+    run(world, hold(press, 20));
+
+    expect(Math.sign(world.player.x - from)).toBe(sign);
   });
 });

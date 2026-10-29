@@ -3,16 +3,14 @@
 //
 // The creature is a passenger. It rides the hat and steers nothing, so the
 // controls stay the wizard's own: the same buttons mean the same directions
-// whether or not it is aboard.
-//
-// This module is where HW-001 is planted, and a planted bug must stay out of
-// what the main suite asserts (AGENTS.md rule 5).
+// whether or not it is aboard. HW-001, the planted swap of left and right
+// while it rode, is fixed here; bugs/tests/hw-001-input-map.test.ts keeps it
+// fixed.
 
 import type { InputFrame } from './input';
 
 /** The frame game/sim/player.ts reads. `carried` is true while the creature rides the hat. */
-export function mapInput(raw: InputFrame, carried: boolean): InputFrame {
-  // The rider faces backwards, so while it is aboard the horizontal axis
-  // arrives in its orientation and is turned back the wizard's way round here.
-  return carried ? { ...raw, left: raw.right, right: raw.left } : raw;
+export function mapInput(raw: InputFrame, _carried: boolean): InputFrame {
+  // A passenger changes nothing about which way the buttons point.
+  return raw;
 }
