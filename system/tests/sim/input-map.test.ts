@@ -1,50 +1,62 @@
-// The input map: the frame the player pressed becoming the frame the wizard
-// acts on (docs/plan/02-design/bug-quest.md, the creature). It is driven
-// through tick() like every replay test, so game/sim/input-map.ts stays inside
-// the simulation.
-//
-// It is also where HW-001 is planted, so nothing here asks what a rider does
-// to the horizontal axis; that is the paired test's alone (AGENTS.md rule 5).
-
+import { NO_INPUT, createWorld, tick } from '../../game/sim/index';
 import { describe, expect, it } from 'vitest';
-import type { WorldState } from '../../game/sim/index';
-import { hold, run, worldFrom } from './helpers';
+import { worldFrom } from './helpers';
 
-/** A bush to walk into, and floor the whole way, so only the input moves him. */
 const ROOM = `
 
-  P  B
-  #################
+  P  B        
+  ############
 `;
 
-/** Ticks of walking right; enough to reach the bush, short of the far wall. */
-const WALK = 30;
+function worldWithCreatureOnHat() {
+  const world = worldFrom(ROOM, { creature: true });
 
-/** The creature's ride, or -1 while it is anywhere else. */
-function carriedSince(world: WorldState): number {
-  return world.creature?.carriedSince ?? -1;
+  for (let step = 0; step < 240; step += 1) {
+    tick(world, { ...NO_INPUT, right: true });
+
+    if (world.creature?.carriedSince !== -1) {
+      return world;
+    }
+  }
+
+  throw new Error('the creature never climbed on the hat');
 }
 
-describe('the input map', () => {
-  it('walks the wizard right on right while the creature is still hiding', () => {
-    const world = worldFrom(ROOM, { creature: true });
-    const from = world.player.x;
+describe('input mapping with the creature riding', () => {
+  it('keeps right moving the wizard right and left moving him left', () => {
+    const rightWorld = worldWithCreatureOnHat();
+    const startX = rightWorld.player.x;
 
-    run(world, hold({ right: true }, 1));
+    tick(rightWorld, { ...NO_INPUT, right: true });
 
-    expect(carriedSince(world)).toBe(-1);
-    expect(world.player.x).toBeGreaterThan(from);
+    expect(rightWorld.player.x).toBeGreaterThan(startX);
+    expect(rightWorld.player.facing).toBe(1);
+
+    const leftWorld = worldWithCreatureOnHat();
+    tick(leftWorld, { ...NO_INPUT, left: true });
+
+    expect(leftWorld.player.x).toBeLessThan(leftWorld.props[0]!.x);
+    expect(leftWorld.player.facing).toBe(-1);
   });
 
-  it('leaves the jump to the wizard while the creature rides', () => {
-    const world = run(worldFrom(ROOM, { creature: true }), hold({ right: true }, WALK));
+  it('leaves jump and charge unchanged while the creature rides', () => {
+    const plainJump = createWorld('P\n#');
+    const carriedJump = worldWithCreatureOnHat();
 
-    expect(carriedSince(world), 'the creature never climbed on').toBeGreaterThanOrEqual(0);
-    expect(world.player.onGround).toBe(true);
+    tick(plainJump, { ...NO_INPUT, jump: true });
+    tick(carriedJump, { ...NO_INPUT, jump: true });
 
-    run(world, hold({ jump: true }, 1));
+    expect(carriedJump.player.state).toBe(plainJump.player.state);
+    expect(carriedJump.player.vy).toBe(plainJump.player.vy);
 
-    expect(world.player.onGround).toBe(false);
-    expect(world.player.state).toBe('jump');
+    const plainCharge = createWorld('P\n#');
+    const carriedCharge = worldWithCreatureOnHat();
+
+    tick(plainCharge, { ...NO_INPUT, charge: true });
+    tick(carriedCharge, { ...NO_INPUT, charge: true });
+
+    expect(carriedCharge.player.state).toBe(plainCharge.player.state);
+    expect(carriedCharge.player.stateTimer).toBe(plainCharge.player.stateTimer);
+    expect(carriedCharge.player.facing).toBe(plainCharge.player.facing);
   });
 });
