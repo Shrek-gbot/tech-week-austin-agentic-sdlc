@@ -68,4 +68,3 @@ export function createHud(): Hud {
     },
   };
 }
-// quick fix
